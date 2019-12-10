@@ -1,8 +1,7 @@
 package websocket
 
 import (
-	"net/http/
-http"
+	"net/http"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/websocket"
@@ -26,7 +25,7 @@ func (engine *Engine) Global(channelName string) (*Channel, error) {
 		return nil, err
 	}
 	channel := &Channel{
-		hub: &Hub{
+		Hub: &Hub{
 			clients:    make(map[*Client]struct{}),
 			broadcast:  make(chan []byte),
 			register:   make(chan *Client),
@@ -42,19 +41,19 @@ func (engine *Engine) Global(channelName string) (*Channel, error) {
 }
 
 type Channel struct {
-	hub         *Hub
+	Hub         *Hub
 	pubsub      *redis.PubSub
 	ChannelName string
 	ChannelKey  string
 }
 
 func (channel *Channel) run() {
-	go channel.hub.run()
+	go channel.Hub.run()
 	ch := channel.pubsub.Channel()
 	for {
 		select {
 		case msg := <-ch:
-			channel.hub.broadcast <- []byte(msg.Payload)
+			channel.Hub.broadcast <- []byte(msg.Payload)
 		}
 	}
 }
@@ -79,11 +78,11 @@ func (channel *Channel) Middleware() gin.HandlerFunc {
 		}
 		client := &Client{
 			ID:   id,
-			hub:  channel.hub,
+			hub:  channel.Hub,
 			conn: conn,
 			send: make(chan []byte, 256),
 		}
-		channel.hub.register <- client
+		channel.Hub.register <- client
 		c.Next()
 	}
 }
