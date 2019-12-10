@@ -67,14 +67,14 @@ func (channel *Channel) Middleware() gin.HandlerFunc {
 		},
 	}
 	return func(c *gin.Context) {
-		c.Keys["channel"] = channel
+		c.Set("channel", channel)
 		conn, err := upGrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			return
 		}
 		defer conn.Close()
 		var id string
-		value, ok := c.Keys["conn_id"]
+		value, ok := c.Get("conn_id")
 		if ok {
 			id = value.(string)
 		}
