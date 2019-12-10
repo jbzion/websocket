@@ -25,7 +25,8 @@ func (engine *Engine) Global(channelName string) (*Channel, error) {
 		return nil, err
 	}
 	channel := &Channel{
-		Hub: &Hub{
+		RDB:		engine.rdb,
+		Hub: 		&Hub{
 			clients:    make(map[*Client]struct{}),
 			broadcast:  make(chan []byte),
 			register:   make(chan *Client),
@@ -41,6 +42,7 @@ func (engine *Engine) Global(channelName string) (*Channel, error) {
 }
 
 type Channel struct {
+	RDB			*redis.Client
 	Hub         *Hub
 	pubsub      *redis.PubSub
 	ChannelName string
