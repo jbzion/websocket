@@ -56,7 +56,7 @@ func handle2(c *gin.Context) {
 		select {
 		case msg := <- received:  //msg like bar:message
 			channels.Publish(string(msg)) //send msg to Redis pub/sub that foo in engine.Public("foo")
-      channels.PublishOther(otherName, string(msg))  //send msg to Other Redis pub/sub
+			channels.PublishOther(otherName, string(msg))  //send msg to Other Redis pub/sub
 		}
 	}
 }
@@ -95,7 +95,7 @@ func handle2(c *gin.Context) {
 		select {
 		case msg := <- received:
 			channels.Publish(string(msg)) //send msg to Redis pub/sub that foo in engine.Public("foo")
-      channels.PublishOther(otherName, string(msg))  //send msg to Other Redis pub/sub
+			channels.PublishOther(otherName, string(msg))  //send msg to Other Redis pub/sub
 		}
 	}
 }
