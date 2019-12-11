@@ -84,12 +84,12 @@ handle2
 ```go
 // Subscribe to Redis pub/sub here
 func handle2(c *gin.Context) {
-	room_id := c.Param("room_id") // You can also get the id from the database
-  
 	value, _ := c.Get("ws_channels")
 	channels := value.(*websocket.Channels)
-  
+	
+	room_id := c.Param("room_id") // You can also get the id from the database
 	channels.Subscribe(room_id) // Subscribe to Redis pub/sub
+	
 	received := channels.Received()
 	for {
 		select {
