@@ -1,5 +1,5 @@
 # websocket
-Convenient, using Redis Pub/sub, Websocket lib for decentralized systems
+Convenient, using Redis Pub/sub, Websocket lib for decentralized systems, kubenetes
 
 ## Quick start
 
