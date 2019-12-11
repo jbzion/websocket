@@ -1,90 +1,94 @@
 package websocket
 
 import (
-	"net/http"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/websocket"
+	"net/http"
 )
+
+var upGrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
 
 type Engine struct {
 	rdb *redis.Client
 }
 
-func New(rdb *redis.Client) *Engine {
+// New Returns an Engine using Redis
+func New(rdb *redis.Client) (*Engine, error) {
+	_, err := rdb.Ping().Result()
+	if err != nil {
+		return nil, err
+	}
 	engine := &Engine{
 		rdb: rdb,
 	}
-
-	return engine
+	return engine, nil
 }
 
-func (engine *Engine) Global(channelName string) (*Channel, error) {
-	pubsub := engine.rdb.Subscribe(channelName)
-	if _, err := pubsub.Receive(); err != nil {
-		return nil, err
+// Public Generate a Channels that subscribes to channelNames
+// and return the Gin handlerFunc
+func (engine *Engine) Public(channelNames ...string) gin.HandlerFunc {
+	var pubsub *redis.PubSub
+	if len(channelNames) != 0 {
+		pubsub = engine.rdb.Subscribe(channelNames...)
+		if _, err := pubsub.Receive(); err != nil {
+			pubsub = nil
+		}
 	}
-	channel := &Channel{
-		RDB:		engine.rdb,
-		Hub: 		&Hub{
+	channels := &Channels{
+		rdb: engine.rdb,
+		hub: &Hub{
 			clients:    make(map[*Client]struct{}),
 			broadcast:  make(chan []byte),
 			register:   make(chan *Client),
 			unregister: make(chan *Client),
-			Received:   make(chan []byte),
+			received:   make(chan []byte),
 		},
-		pubsub:      pubsub,
-		ChannelName: channelName,
-		ChannelKey:  "",
+		pubsub:       pubsub,
+		ChannelNames: channelNames,
 	}
-	go channel.run()
-	return channel, nil
+	go channels.hub.run()
+	if pubsub != nil {
+		go channels.run()
+	}
+	return channels.middleware()
 }
 
-type Channel struct {
-	RDB			*redis.Client
-	Hub         *Hub
-	pubsub      *redis.PubSub
-	ChannelName string
-	ChannelKey  string
-}
-
-func (channel *Channel) run() {
-	go channel.Hub.run()
-	ch := channel.pubsub.Channel()
-	for {
-		select {
-		case msg := <-ch:
-			channel.Hub.broadcast <- []byte(msg.Payload)
-		}
-	}
-}
-
-func (channel *Channel) Middleware() gin.HandlerFunc {
-	var upGrader = websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
-	}
+func (engine *Engine) Private() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Set("channel", channel)
+		channels := &Channels{
+			rdb: engine.rdb,
+			hub: &Hub{
+				clients:    make(map[*Client]struct{}),
+				broadcast:  make(chan []byte),
+				register:   make(chan *Client),
+				unregister: make(chan *Client),
+				received:   make(chan []byte),
+			},
+		}
+		go channels.hub.run()
+		c.Set("ws_channels", channels)
 		conn, err := upGrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			return
 		}
 		defer conn.Close()
 		var id string
-		value, ok := c.Get("conn_id")
+		value, ok := c.Get("ws_client_id")
 		if ok {
 			id = value.(string)
 		}
 		client := &Client{
 			ID:   id,
-			hub:  channel.Hub,
+			hub:  channels.hub,
 			conn: conn,
 			send: make(chan []byte, 256),
 		}
-		channel.Hub.register <- client
+		channels.hub.register <- client
 		c.Next()
 	}
 }

@@ -68,10 +68,12 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 		var buffer bytes.Buffer
-		buffer.Write([]byte(c.ID))
-		buffer.Write([]byte(":"))
+		if c.ID != "" {
+			buffer.Write([]byte(c.ID))
+			buffer.Write([]byte(":"))
+		}
 		buffer.Write(message)
-		c.hub.Received <- buffer.Bytes()
+		c.hub.received <- buffer.Bytes()
 	}
 }
 

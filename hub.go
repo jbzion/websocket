@@ -12,7 +12,7 @@ type Hub struct {
 	// Unregister requests from clients.
 	unregister 	chan *Client
 	//Message received from clients
-	Received	chan []byte
+	received	chan []byte
 }
 
 func (h *Hub) run() {
