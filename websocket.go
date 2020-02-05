@@ -90,5 +90,6 @@ func (engine *Engine) Private() gin.HandlerFunc {
 		}
 		channels.hub.register <- client
 		c.Next()
+		channels.pubsub.Close()
 	}
 }
