@@ -22,6 +22,8 @@ func (channels *Channels) run() {
 			channels.hub.broadcast <- []byte(msg.Payload)
 		}
 	}
+	channels.pubsub.Close()
+	fmt.Println("pubsub close")
 }
 
 // Subscribe to channelNames and run the channel
@@ -80,7 +82,5 @@ func (channels *Channels) middleware() gin.HandlerFunc {
 		}
 		channels.hub.register <- client
 		c.Next()
-		channels.pubsub.Close()
-		fmt.Println("pubsub close")
 	}
 }
