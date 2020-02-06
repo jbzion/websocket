@@ -3,7 +3,6 @@ package websocket
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/websocket"
 )
@@ -30,9 +29,16 @@ func New(rdb *redis.Client) (*Engine, error) {
 	return engine, nil
 }
 
-// Public Generate a Channels that subscribes to channelNames
-// and return the Gin handlerFunc
-func (engine *Engine) Public(channelNames ...string) gin.HandlerFunc {
+// PublicChannel Generate a Channels that subscribes to channelNames
+func (engine *Engine) PublicChannel(channelNames ...string) *Channels {
+	return engine.newChannel(false, channelNames...)
+}
+
+func (engine *Engine) PrivateChannel(channelNames ...string) *Channels {
+	return engine.newChannel(true, channelNames...)
+}
+
+func (engine *Engine) newChannel(isPrivate bool, channelNames ...string) *Channels {
 	var pubsub *redis.PubSub
 	if len(channelNames) != 0 {
 		pubsub = engine.rdb.Subscribe(channelNames...)
@@ -48,6 +54,7 @@ func (engine *Engine) Public(channelNames ...string) gin.HandlerFunc {
 			register:   make(chan *Client),
 			unregister: make(chan *Client),
 			received:   make(chan []byte),
+			isPrivate:	isPrivate,
 		},
 		pubsub:       pubsub,
 		ChannelNames: channelNames,
@@ -56,40 +63,5 @@ func (engine *Engine) Public(channelNames ...string) gin.HandlerFunc {
 	if pubsub != nil {
 		go channels.run()
 	}
-	return channels.middleware()
-}
-
-func (engine *Engine) Private() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		channels := &Channels{
-			rdb: engine.rdb,
-			hub: &Hub{
-				clients:    make(map[*Client]struct{}),
-				broadcast:  make(chan []byte),
-				register:   make(chan *Client),
-				unregister: make(chan *Client),
-				received:   make(chan []byte),
-			},
-		}
-		go channels.hub.run()
-		c.Set("ws_channels", channels)
-		conn, err := upGrader.Upgrade(c.Writer, c.Request, nil)
-		if err != nil {
-			return
-		}
-		defer conn.Close()
-		var id string
-		value, ok := c.Get("ws_client_id")
-		if ok {
-			id = value.(string)
-		}
-		client := &Client{
-			ID:   id,
-			hub:  channels.hub,
-			conn: conn,
-			send: make(chan []byte, 256),
-		}
-		channels.hub.register <- client
-		c.Next()
-	}
+	return channels
 }

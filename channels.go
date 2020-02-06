@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"fmt"
 	"github.com/go-redis/redis/v7"
 	"github.com/gin-gonic/gin"
 )
@@ -22,35 +21,6 @@ func (channels *Channels) run() {
 			channels.hub.broadcast <- []byte(msg.Payload)
 		}
 	}
-	channels.pubsub.Close()
-	fmt.Println("pubsub close")
-}
-
-// Subscribe to channelNames and run the channel
-func (channels *Channels) Subscribe(channelNames ...string) error {
-	if channels.pubsub != nil {
-		return fmt.Errorf("Channels are active, subscriptions cannot be changed")
-	}
-	pubsub := channels.rdb.Subscribe(channelNames...)
-	if _, err := pubsub.Receive(); err != nil {
-		return err
-	}
-	channels.pubsub = pubsub
-	channels.ChannelNames = channelNames
-	go channels.run()
-	return nil
-}
-
-// Publish Send message to all subscriptions on this channels
-func (channels *Channels) Publish(msg string) {
-	for _, v := range channels.ChannelNames {
-		channels.rdb.Publish(v, msg)
-	}
-}
-
-// PublishOther Send message to other Redis pubsub channel
-func (channels *Channels) PublishOther(channelName string, msg string) {
-	channels.rdb.Publish(channelName, msg)
 }
 
 // Received Returns a chan []byte that receives all messages 
@@ -59,9 +29,9 @@ func (channels *Channels) Received() chan []byte {
 	return channels.hub.received
 }
 
-// middleware Returns a Gin HandleFunc that upgrader requests 
+// Middleware Returns a Gin HandleFunc that upgrader requests 
 // to websocket requests 
-func (channels *Channels) middleware() gin.HandlerFunc {
+func (channels *Channels) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set("ws_channels", channels)
 		conn, err := upGrader.Upgrade(c.Writer, c.Request, nil)
