@@ -31,32 +31,21 @@ engine, _ := websocket.New(rdb)
 Router
 ```go
 r := gin.Default()
-r.GET("/ws/:user_id", handle1, engine.Public("foo"), handle2) //Subscribe "foo" Redis pub/sub
+publicChannel := engine.PublicChannel("foo")	//Subscribe "foo" Redis pub/sub
+r.GET("/ws/info", publicChannel.Middleware(), handle1)
 ```
 
 handle1
 ```go
 // Check authorization and rejection here
 func handle1(c *gin.Context) {
-	id := c.Param("user_id")  // You can also get the id from the database
-	c.Set("ws_client_id", id) // ws_client_id is the prefix for client sending messages like bar:message
-	c.Next()
-}
-```
-
-handle2
-```go
-// Handle received messages here if you need to
-func handle2(c *gin.Context) {
 	value, _ := c.Get("ws_channels")
 	channels := value.(*websocket.Channels)
-  
+
 	received := channels.Received()
 	for {
 		select {
-		case msg := <- received:  //msg like bar:message
-			channels.Publish(string(msg)) //send msg to Redis pub/sub that foo in engine.Public("foo")
-			channels.PublishOther(otherName, string(msg))  //send msg to Other Redis pub/sub
+		case <-received:
 		}
 	}
 }
@@ -67,7 +56,8 @@ func handle2(c *gin.Context) {
 Router
 ```go
 r := gin.Default()
-r.GET("/ws/:room_id/:user_id", handle1, engine.Private(), handle2)
+privateChannel := engine.PrivateChannel("foo")
+r.GET("/ws/order", handle1, privateChannel.Middleware(), handle2)
 ```
 
 handle1
@@ -86,17 +76,25 @@ handle2
 func handle2(c *gin.Context) {
 	value, _ := c.Get("ws_channels")
 	channels := value.(*websocket.Channels)
-	
-	room_id := c.Param("room_id") // You can also get the id from the database
-	channels.Subscribe(room_id) // Subscribe to Redis pub/sub
-	
+
 	received := channels.Received()
 	for {
 		select {
-		case msg := <- received:
-			channels.Publish(string(msg)) //send msg to Redis pub/sub that foo in engine.Public("foo")
-			channels.PublishOther(otherName, string(msg))  //send msg to Other Redis pub/sub
+		case <- received:
 		}
 	}
 }
+```
+
+publish
+```go
+message := struct{
+	ID	int64	`json:"id,string"`
+	Data	interface{}	`json:"data"`
+}{
+	ID: 123,
+	Data: "hello",	// ID只用來分配訊息，最終瀏覽器只會接收到Data
+}
+b, _ := json.Marshal(message)
+rdb.Publish("foo", b)
 ```
