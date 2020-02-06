@@ -5,7 +5,6 @@ import (
 	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/websocket"
 	"net/http"
-	"fmt"
 )
 
 var upGrader = websocket.Upgrader{
@@ -92,6 +91,5 @@ func (engine *Engine) Private() gin.HandlerFunc {
 		channels.hub.register <- client
 		c.Next()
 		channels.pubsub.Close()
-		fmt.Println("pubsub close")
 	}
 }

@@ -81,6 +81,5 @@ func (channels *Channels) middleware() gin.HandlerFunc {
 		channels.hub.register <- client
 		c.Next()
 		channels.pubsub.Close()
-		fmt.Println("pubsub close")
 	}
 }
