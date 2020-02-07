@@ -10,7 +10,7 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 // clients.
 type Hub struct {
 	// Registered clients.
-	clients 	map[*Client]struct{}
+	clients 	map[string]map[*Client]struct{}
 	// Broadcast to client
 	broadcast 	chan []byte
 	// Register requests from the clients.
@@ -32,36 +32,43 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
-			h.clients[client] = struct{}{}
+			if _, exist := h.clients[client.ID]; !exist {
+				h.clients[client.ID] = make(map[*Client]struct{})
+			}
+			h.clients[client.ID][client] = struct{}{}
 			go client.writePump()
 			go client.readPump()
 		case client := <-h.unregister:
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
-				close(client.send)
+			if _, exist := h.clients[client.ID]; exist {
+				if _, ok := h.clients[client.ID][client]; ok {
+					delete(h.clients[client.ID], client)
+					close(client.send)
+				}
 			}
 		case message := <-h.broadcast:
 			if h.isPrivate {
 				msg := new(Message)
 				json.Unmarshal(message, msg)
 				b, _ := json.Marshal(msg.Data)
-				for client := range h.clients {
-					if msg.ID == client.ID {
+				if _, exist := h.clients[msg.ID]; exist {
+					for client := range h.clients[msg.ID] {
 						select {
 						case client.send <- b:
 						default:
 							close(client.send)
-							delete(h.clients, client)
+							delete(h.clients[client.ID], client)
 						}
 					}
 				}
 			} else {
-				for client := range h.clients {
-					select {
-					case client.send <- message:
-					default:
-						close(client.send)
-						delete(h.clients, client)
+				for _, clients := range h.clients {
+					for client := range clients {
+						select {
+						case client.send <- message:
+						default:
+							close(client.send)
+							delete(h.clients[client.ID], client)
+						}
 					}
 				}
 			}

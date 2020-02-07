@@ -49,7 +49,7 @@ func (engine *Engine) newChannel(isPrivate bool, channelNames ...string) *Channe
 	channels := &Channels{
 		rdb: engine.rdb,
 		hub: &Hub{
-			clients:    make(map[*Client]struct{}),
+			clients:    make(map[string]map[*Client]struct{}),
 			broadcast:  make(chan []byte),
 			register:   make(chan *Client),
 			unregister: make(chan *Client),

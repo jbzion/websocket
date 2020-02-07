@@ -27,7 +27,7 @@ var (
 )
 
 type Client struct {
-	ID	string
+	ID		string
 	hub 	*Hub
 	// The websocket connection.
 	conn 	*websocket.Conn
